@@ -1,3 +1,5 @@
+// code mostly borrowed from the rdkafka simple consumer example
+
 #![allow(dead_code)]
 #![allow(unused_variables)]
 #![allow(unused_imports)]
