@@ -12,12 +12,12 @@ description = "Parsers for offset message and key on __consumer_offsets topic"
 
 [dependencies]
 nom = "7"
-thiserror = "*"
+thiserror = "1"
 
 [dev-dependencies]
 rdkafka = "0.26"
 tokio = { version = "1.10", features = ["full"] }
-eyre = "*"
-clap = "*"
-log = "*"
+eyre = "0.6"
+clap = "2"
+log = "0.4"
 env_logger = "0.9"
