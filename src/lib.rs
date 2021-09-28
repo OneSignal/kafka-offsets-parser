@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::convert::TryFrom;
 
 use nom::number::complete::{be_u16, be_i32, be_u64, be_u32};
@@ -28,14 +29,20 @@ impl<I> ParseError<I> for ConsurmeOffsetsMessageParseError<I> {
 }
 
 /// Message value when key is an OffsetKey
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OffsetCommitValue<'a> {
-    version: u16,
-    offset: u64,
-    leader_epoch: Option<u32>,
-    metadata: &'a str,
-    commit_timestamp: u64,
-    expire_timestamp: Option<u64>,
+    pub version: u16,
+    pub offset: u64,
+    pub leader_epoch: Option<u32>,
+    metadata: Cow<'a, str>,
+    pub commit_timestamp: u64,
+    pub expire_timestamp: Option<u64>,
+}
+
+impl<'a> OffsetCommitValue<'a> {
+    pub fn metadata(&self) -> &str {
+        &self.metadata
+    }
 }
 
 impl<'a> TryFrom<&'a [u8]> for OffsetCommitValue<'a> {
@@ -51,6 +58,7 @@ impl<'a> TryFrom<&'a [u8]> for OffsetCommitValue<'a> {
 }
 
 /// The message key for messages on the __consumer_offsets topic
+#[derive(Debug, Clone)]
 pub enum ConsumerOffsetsMessageKey<'a> {
     /// Key for OffsetCommitValue message
     Offset(OffsetKey<'a>),
@@ -64,13 +72,22 @@ pub enum ConsumerOffsetsMessageKey<'a> {
 }
 
 /// Data for the OffsetKey variant
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OffsetKey<'a> {
-    group: &'a str,
-    topic: &'a str,
+    pub group: Cow<'a, str>,
+    pub topic: Cow<'a, str>,
     partition: i32,
 }
 
+impl<'a> OffsetKey<'a> {
+    pub fn group(&self) -> &str {
+        &self.group
+    }
+
+    pub fn topic(&self) -> &str {
+        &self.group
+    }
+}
 
 impl<'a> TryFrom<&'a [u8]> for ConsumerOffsetsMessageKey<'a> {
     type Error = ConsurmeOffsetsMessageParseError<&'a [u8]>;
@@ -103,7 +120,7 @@ fn parse_offset_commit_value0(bytes: &[u8]) -> IResult<&[u8], OffsetCommitValue>
     Ok((bytes, OffsetCommitValue {
         version: 0,
         offset,
-        metadata,
+        metadata: Cow::Borrowed(metadata),
         commit_timestamp,
         expire_timestamp: None,
         leader_epoch: None,
@@ -115,7 +132,7 @@ fn parse_offset_commit_value1(bytes: &[u8]) -> IResult<&[u8], OffsetCommitValue>
     Ok((bytes, OffsetCommitValue {
         version: 1,
         offset,
-        metadata,
+        metadata: Cow::Borrowed(metadata),
         commit_timestamp,
         expire_timestamp: Some(expire_timestamp),
         leader_epoch: None,
@@ -127,7 +144,7 @@ fn parse_offset_commit_value3(bytes: &[u8]) -> IResult<&[u8], OffsetCommitValue>
     Ok((bytes, OffsetCommitValue {
         version: 3,
         offset,
-        metadata,
+        metadata: Cow::Borrowed(metadata),
         commit_timestamp,
         leader_epoch: if leader_epoch == u32::MAX { None } else { Some(leader_epoch) },
         expire_timestamp: None,
@@ -147,7 +164,11 @@ fn parse_offset_commit_value(bytes: &[u8]) -> IResult<&[u8], OffsetCommitValue> 
 fn parse_offset_key(bytes: &[u8]) -> IResult<&[u8], ConsumerOffsetsMessageKey> {
     let (bytes, (group, topic, partition)) = tuple((length_str, length_str, be_i32))(bytes)?;
 
-    let offset_key = OffsetKey { group, topic, partition };
+    let offset_key = OffsetKey {
+        group: Cow::Borrowed(group),
+        topic: Cow::Borrowed(topic),
+        partition
+    };
     Ok((bytes, ConsumerOffsetsMessageKey::Offset(offset_key)))
 }
 
@@ -156,5 +177,17 @@ fn parse_consumer_offsets_message_key(bytes: &[u8]) -> IResult<&[u8], ConsumerOf
     match version {
         0..=1 => parse_offset_key(bytes),
         _ => Ok((&[], ConsumerOffsetsMessageKey::GroupMetadata))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn assert_clone<T: Clone + ToOwned>() {}
+
+    #[test]
+    fn is_cloneable() {
+        assert_clone::<OffsetCommitValue>();
+        assert_clone::<ConsumerOffsetsMessageKey>();
     }
 }
