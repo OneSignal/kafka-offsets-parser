@@ -250,6 +250,7 @@ dependencies = [
  "log",
  "nom",
  "rdkafka",
+ "thiserror",
  "tokio",
 ]
 

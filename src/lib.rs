@@ -1,21 +1,25 @@
 use std::borrow::Cow;
 use std::convert::TryFrom;
 
+use thiserror::Error;
+
 use nom::number::complete::{be_u16, be_i32, be_u64, be_u32};
 use nom::multi::length_data;
 use nom::sequence::tuple;
 use nom::error::{ErrorKind, ParseError};
-use nom::Err::Error;
 
-pub type IResult<I, O> = nom::IResult<I, O, ConsumerOffsetsMessageParseError<I>>;
+type IResult<I, O> = nom::IResult<I, O, ConsumerOffsetsMessageParseError<I>>;
 
 /// Error type for our parsers
-///
-/// Nom doesn't have a Utf8 error built in so we add our own. Weird!
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum ConsumerOffsetsMessageParseError<I> {
-    FromUtf8Error(std::str::Utf8Error),
-    Nom(I, ErrorKind)
+    #[error("invalid utf8 sequence")]
+    FromUtf8Error(#[from] std::str::Utf8Error),
+    #[error("parsing error")]
+    Nom(I, ErrorKind),
+    /// Ran out of data
+    #[error("insufficient data")]
+    Incomplete,
 }
 
 impl<I> ParseError<I> for ConsumerOffsetsMessageParseError<I> {
@@ -51,8 +55,9 @@ impl<'a> TryFrom<&'a [u8]> for OffsetCommitValue<'a> {
     fn try_from(bytes: &'a [u8]) -> Result<Self, Self::Error> {
         match parse_offset_commit_value(bytes) {
             Ok((_, res)) => Ok(res),
-            Err(Error(err)) => Err(err),
-            _ => unreachable!(),
+            Err(nom::Err::Error(err)) |
+            Err(nom::Err::Failure(err)) => Err(err),
+            Err(nom::Err::Incomplete(_)) => Err(ConsumerOffsetsMessageParseError::Incomplete),
         }
     }
 }
@@ -74,9 +79,9 @@ pub enum ConsumerOffsetsMessageKey<'a> {
 /// Data for the OffsetKey variant
 #[derive(Debug, Clone)]
 pub struct OffsetKey<'a> {
-    pub group: Cow<'a, str>,
-    pub topic: Cow<'a, str>,
-    partition: i32,
+    group: Cow<'a, str>,
+    topic: Cow<'a, str>,
+    pub partition: i32,
 }
 
 impl<'a> OffsetKey<'a> {
@@ -95,8 +100,9 @@ impl<'a> TryFrom<&'a [u8]> for ConsumerOffsetsMessageKey<'a> {
     fn try_from(bytes: &'a [u8]) -> Result<Self, Self::Error> {
         match parse_consumer_offsets_message_key(bytes) {
             Ok((_, res)) => Ok(res),
-            Err(Error(err)) => Err(err),
-            _ => unreachable!(),
+            Err(nom::Err::Error(err)) |
+            Err(nom::Err::Failure(err)) => Err(err),
+            Err(nom::Err::Incomplete(_)) => Err(ConsumerOffsetsMessageParseError::Incomplete),
         }
     }
 }
@@ -111,7 +117,7 @@ fn length_str(bytes: &[u8]) -> IResult<&[u8], &str> {
     let (bytes, sbuf) = length_data(be_u16)(bytes)?;
     match std::str::from_utf8(sbuf) {
         Ok(s) => Ok((bytes, s)),
-        Err(e) => Err(Error(ConsumerOffsetsMessageParseError::FromUtf8Error(e)))
+        Err(e) => Err(nom::Err::Error(From::from(e)))
     }
 }
 
@@ -157,7 +163,7 @@ fn parse_offset_commit_value(bytes: &[u8]) -> IResult<&[u8], OffsetCommitValue> 
         0     => parse_offset_commit_value0(bytes),
         1..=2 => parse_offset_commit_value1(bytes),
         3     => parse_offset_commit_value3(bytes),
-        _ => Err(Error(ConsumerOffsetsMessageParseError::Nom(bytes, ErrorKind::Fail)))
+        _ => Err(nom::Err::Error(ConsumerOffsetsMessageParseError::Nom(bytes, ErrorKind::Fail)))
     }
 }
 
