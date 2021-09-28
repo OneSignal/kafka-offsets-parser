@@ -13,3 +13,7 @@ clap = "*"
 log = "*"
 env_logger = "0.9"
 nom = "7"
+
+[[bin]]
+path = "bin/kafka-offsets-parser.rs"
+name = "kafka-offsets-parser"
