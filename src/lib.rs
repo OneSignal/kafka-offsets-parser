@@ -7,20 +7,20 @@ use nom::sequence::tuple;
 use nom::error::{ErrorKind, ParseError};
 use nom::Err::Error;
 
-pub type IResult<I, O> = nom::IResult<I, O, ConsurmeOffsetsMessageParseError<I>>;
+pub type IResult<I, O> = nom::IResult<I, O, ConsumerOffsetsMessageParseError<I>>;
 
 /// Error type for our parsers
 ///
 /// Nom doesn't have a Utf8 error built in so we add our own. Weird!
 #[derive(Debug)]
-pub enum ConsurmeOffsetsMessageParseError<I> {
+pub enum ConsumerOffsetsMessageParseError<I> {
     FromUtf8Error(std::str::Utf8Error),
     Nom(I, ErrorKind)
 }
 
-impl<I> ParseError<I> for ConsurmeOffsetsMessageParseError<I> {
+impl<I> ParseError<I> for ConsumerOffsetsMessageParseError<I> {
   fn from_error_kind(input: I, kind: ErrorKind) -> Self {
-    ConsurmeOffsetsMessageParseError::Nom(input, kind)
+    ConsumerOffsetsMessageParseError::Nom(input, kind)
   }
 
   fn append(_: I, _: ErrorKind, other: Self) -> Self {
@@ -46,7 +46,7 @@ impl<'a> OffsetCommitValue<'a> {
 }
 
 impl<'a> TryFrom<&'a [u8]> for OffsetCommitValue<'a> {
-    type Error = ConsurmeOffsetsMessageParseError<&'a [u8]>;
+    type Error = ConsumerOffsetsMessageParseError<&'a [u8]>;
 
     fn try_from(bytes: &'a [u8]) -> Result<Self, Self::Error> {
         match parse_offset_commit_value(bytes) {
@@ -90,7 +90,7 @@ impl<'a> OffsetKey<'a> {
 }
 
 impl<'a> TryFrom<&'a [u8]> for ConsumerOffsetsMessageKey<'a> {
-    type Error = ConsurmeOffsetsMessageParseError<&'a [u8]>;
+    type Error = ConsumerOffsetsMessageParseError<&'a [u8]>;
 
     fn try_from(bytes: &'a [u8]) -> Result<Self, Self::Error> {
         match parse_consumer_offsets_message_key(bytes) {
@@ -111,7 +111,7 @@ fn length_str(bytes: &[u8]) -> IResult<&[u8], &str> {
     let (bytes, sbuf) = length_data(be_u16)(bytes)?;
     match std::str::from_utf8(sbuf) {
         Ok(s) => Ok((bytes, s)),
-        Err(e) => Err(Error(ConsurmeOffsetsMessageParseError::FromUtf8Error(e)))
+        Err(e) => Err(Error(ConsumerOffsetsMessageParseError::FromUtf8Error(e)))
     }
 }
 
@@ -157,7 +157,7 @@ fn parse_offset_commit_value(bytes: &[u8]) -> IResult<&[u8], OffsetCommitValue> 
         0     => parse_offset_commit_value0(bytes),
         1..=2 => parse_offset_commit_value1(bytes),
         3     => parse_offset_commit_value3(bytes),
-        _ => Err(Error(ConsurmeOffsetsMessageParseError::Nom(bytes, ErrorKind::Fail)))
+        _ => Err(Error(ConsumerOffsetsMessageParseError::Nom(bytes, ErrorKind::Fail)))
     }
 }
 
