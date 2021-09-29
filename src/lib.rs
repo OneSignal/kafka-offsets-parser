@@ -12,7 +12,7 @@ type IResult<I, O> = nom::IResult<I, O, ConsumerOffsetsMessageParseError<I>>;
 
 /// Error type for our parsers
 #[derive(Error, Debug)]
-pub enum ConsumerOffsetsMessageParseError<I> {
+pub enum ConsumerOffsetsMessageParseError<I: std::fmt::Debug> {
     #[error("invalid utf8 sequence")]
     FromUtf8Error(#[from] std::str::Utf8Error),
     #[error("parsing error")]
@@ -22,7 +22,7 @@ pub enum ConsumerOffsetsMessageParseError<I> {
     Incomplete,
 }
 
-impl<I> ParseError<I> for ConsumerOffsetsMessageParseError<I> {
+impl<I: std::fmt::Debug> ParseError<I> for ConsumerOffsetsMessageParseError<I> {
   fn from_error_kind(input: I, kind: ErrorKind) -> Self {
     ConsumerOffsetsMessageParseError::Nom(input, kind)
   }
