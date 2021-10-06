@@ -90,7 +90,7 @@ impl<'a> OffsetKey<'a> {
     }
 
     pub fn topic(&self) -> &str {
-        &self.group
+        &self.topic
     }
 }
 
