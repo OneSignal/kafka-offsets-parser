@@ -12,6 +12,7 @@ use log::{info, self};
 
 use rdkafka::client::ClientContext;
 use rdkafka::config::{ClientConfig, RDKafkaLogLevel};
+use rdkafka::consumer::base_consumer::BaseConsumer;
 use rdkafka::consumer::stream_consumer::StreamConsumer;
 use rdkafka::consumer::{CommitMode, Consumer, ConsumerContext, Rebalance};
 use rdkafka::error::KafkaResult;
@@ -29,11 +30,11 @@ struct CustomContext;
 impl ClientContext for CustomContext {}
 
 impl ConsumerContext for CustomContext {
-    fn pre_rebalance(&self, rebalance: &Rebalance) {
+    fn pre_rebalance(&self, _base_consumer: &BaseConsumer<CustomContext>, rebalance: &Rebalance) {
         log::trace!("Pre rebalance {:?}", rebalance);
     }
 
-    fn post_rebalance(&self, rebalance: &Rebalance) {
+    fn post_rebalance(&self, _base_consumer: &BaseConsumer<CustomContext>, rebalance: &Rebalance) {
         log::trace!("Post rebalance {:?}", rebalance);
     }
 
